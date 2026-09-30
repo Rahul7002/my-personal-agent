@@ -41,5 +41,14 @@ iii-> Stop the container:	docker stop my-fastapi-container
 iv-> Remove the container:	docker rm my-fastapi-container
 
 ---------------------------------------------------------
-Phase 3: VsCode FastApi Debugger
+Phase 3: VsCode FastApi Debugger & Docker Debugger
 ---------------------------------------------------------
+
+i-> Create a .vscode folder and a file launch.json into it.
+ii-> For FastApi debugger , Add a break point in main.py and start debugger ad trigger break point by opening http://127.0.0.1:8000 in browser.
+iii-> For docker debugger add debugpy in requirements.txt to include it.
+    -> Update your Dockerfile so it exposes port 5678 (for the debugger) in addition to port 8000 (for web traffic)
+    -> Attach config to launch.json
+    -> Build the updated image by running: docker build -t fastapi-debug .
+    -> Run the container, mapping both ports: docker run -p 8000:8000 -p 5678:5678 -v "$(pwd):/app" --name fastapi-debug-app --rm fastapi-debug
+    -> Attach and Hit a Breakpoint and same as for Fast Api Debugger

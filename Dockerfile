@@ -13,8 +13,13 @@ RUN pip install --no-cache-dir -r requirements.txt
 # 5. Copy Code: Copy your main.py file into the container's /app directory
 COPY main.py .
 
-# 6. Port: Document that the container listens on port 8000
-EXPOSE 8000
+# # 6. Port: Document that the container listens on port 8000
+# EXPOSE 8000
 
-# 7. Start: The command to run when the container starts
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+# # 7. Start: The command to run when the container starts
+# CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+
+# 8000 for FastAPI, 5678 for VS Code Debugger
+EXPOSE 8000 5678
+
+CMD ["python", "-m", "debugpy", "--listen", "0.0.0.0:5678", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]

@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
 from app.schemas.chat import ChatRequest, ChatResponse
 from app.services.llm.base import BaseLLMProvider
 from app.services.llm.factory import get_llm_provider
@@ -25,3 +26,24 @@ def ask_ai(
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/stream")
+async def stream_chat(
+    payload: ChatRequest,
+    llm: BaseLLMProvider = Depends(get_llm_provider),
+):
+    token_stream = llm.generate_stream(
+        prompt=payload.prompt,
+        system_prompt=payload.system_prompt,
+        model=settings.OLLAMA_MODEL,
+    )
+
+    return StreamingResponse(
+        token_stream,
+        media_type="text/plain",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",  # Prevents Nginx/proxies from buffering chunks
+        },
+    )

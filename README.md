@@ -113,3 +113,25 @@ Now Current Architecture Overview:
                                    │
                                    ▼
                             [llama3.2:1b]
+
+-------------------------------------------------------------------------------
+Phase 5: Implement Streaming API
+-------------------------------------------------------------------------------
+
+To stream tokens in real time from Ollama through FastAPI, you need three pieces:
+
+1. Async client: Use ollama.AsyncClient so streaming does not block FastAPI's async event loop.
+2. Async generator: Yield each token chunk as Ollama produces it.
+3. StreamingResponse: Stream the chunks over an HTTP connection using text/event-stream (Server-Sent Events) or plain text chunking.
+
+Step 1: Update the Base Interface, Add an async generator method generate_stream to app/services/llm/base.py
+Step 2: Implement Streaming in the Ollama Provider, Update app/services/llm/ollama_provider.py to use ollama.AsyncClient with stream=True
+Step 3: Add the Streaming Endpoint, Add a new POST /stream endpoint in app/api/v1/chat.py,
+Step 4. Test with  curl -N -X POST "http://localhost:8000/api/v1/chat/stream" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "prompt": "Write a 4-line poem about money.",
+    "model": "llama3.2:1b"
+  }'
+
+Because Swagger UI (/docs) waits for the full response to finish before rendering text, test the live stream with above curl.

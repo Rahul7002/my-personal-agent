@@ -52,3 +52,64 @@ iii-> For docker debugger add debugpy in requirements.txt to include it.
     -> Build the updated image by running: docker build -t fastapi-debug .
     -> Run the container, mapping both ports: docker run -p 8000:8000 -p 5678:5678 -v "$(pwd):/app" --name fastapi-debug-app --rm fastapi-debug
     -> Attach and Hit a Breakpoint and same as for Fast Api Debugger
+
+-------------------------------------------------------------------------------
+Phase 4: Implement ollama provider with enterprises structure and post chat api
+-------------------------------------------------------------------------------
+
+    fast-api-backend/
+├── app/
+│   ├── __init__.py
+│   ├── main.py
+│   ├── core/
+│   │   ├── __init__.py
+│   │   └── config.py
+│   ├── schemas/
+│   │   ├── __init__.py
+│   │   └── chat.py
+│   ├── services/
+│   │   └── llm/
+│   │       ├── __init__.py
+│   │       ├── base.py
+│   │       ├── ollama_provider.py
+│   │       ├── openai_provider.py      <-- (Plug-and-play future provider)
+│   │       └── factory.py
+│   └── api/
+│       ├── __init__.py
+│       └── v1/
+│           ├── __init__.py
+│           └── chat.py
+├── .env
+├── Dockerfile
+└── requirements.txt
+
+i-> pip install ollama pydantic-settings
+ii-> Configure Environment Settings, Create/update:  app/core/config.py
+iii-> Define Request & Response Schemas, Create app/schemas/chat.py to validate input and output JSON.
+iv-> Create the LLM Interface & Ollama Service,
+    * app/services/llm/base.py (The blueprint):
+    * app/services/llm/ollama_provider.py (The implementation):
+    * app/services/llm/factory.py (The provider resolver):
+v-> Create the API Endpoint, Create app/api/v1/chat.py to expose the HTTP route, also Mount this router in app/main.py
+vi-> Test it by running your server either from terminal(uvicorn app.main:app --reload --port 8000) or from docker(docker run -p 8000:8000 \
+  -e OLLAMA_HOST="http://host.docker.internal:11434" \
+  fastapi-debug)
+
+
+Now Current Architecture Overview:
+[Browser / Swagger / Client]
+             │
+             ▼ (Port 8000)
+    [FastAPI Router: /api/v1/chat/ask]
+             │
+             ▼ (Validates via Pydantic Schema)
+       [ChatRequest]
+             │
+             ▼ (Dependency Injection)
+      [LLM Factory] ───► Resolves [OllamaProvider]
+                                   │
+                                   ▼ (Port 11434 via host.docker.internal)
+                           [Ollama Engine on Mac GPU]
+                                   │
+                                   ▼
+                            [llama3.2:1b]

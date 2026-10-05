@@ -1,0 +1,50 @@
+version: "3.8"
+
+services:
+  # 1. PostgreSQL Database Service
+  db:
+    image: postgres:16-alpine
+    container_name: postgres_db
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-ai_backend_db}
+    ports:
+      # Exposes 5432 to host so you can connect table viewer tools (DBeaver, TablePlus, pgAdmin)
+      - "5432:5432"
+    volumes:
+      # Named volume ensures data is preserved even if container is deleted
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # 2. FastAPI Web Application
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: fastapi_app
+    restart: unless-stopped
+    ports:
+      - "8000:8000"  # HTTP web traffic
+      - "5678:5678"  # debugpy debugger port
+    volumes:
+      - .:/app       # Hot reload sync
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-ai_backend_db}
+      - OLLAMA_HOST=http://host.docker.internal:11434
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-llama3.2:1b}
+      - LLM_PROVIDER=${LLM_PROVIDER:-ollama}
+    extra_hosts:
+      # Enables Mac host communication for Ollama
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  postgres_data:

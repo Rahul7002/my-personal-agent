@@ -135,3 +135,15 @@ Step 4. Test with  curl -N -X POST "http://localhost:8000/api/v1/chat/stream" \
   }'
 
 Because Swagger UI (/docs) waits for the full response to finish before rendering text, test the live stream with above curl.
+
+-------------------------------------------------------------------------------
+Phase 6: Make Docker composer with PostgreSql
+-------------------------------------------------------------------------------
+Step 1: Update requirements.txt add sqlalchemy[asyncio]>=2.0.0 , asyncpg>=0.29.0
+Step 2: i-> Configure Environment Variables & ii-> In app/core/config.py: Update Settings to ingest the database URL:
+Step 3: Create the Database Session Layer, Create a dedicated database module directory: app/db/session.py
+        set up the async engine, session factory, and a FastAPI dependency
+Step 4: Write docker-compose.yml , Create docker-compose.yml in your project root:
+Step 5: Add a Database Health Check Endpoint, Add a quick route to test connectivity in app/main.py
+Step 6: Launch & Verify, docker compose up --build, & in tab docker compose ps(see both postgres_db (healthy) and fastapi_app running)
+Test the DB Endpoint: curl http://localhost:8000/health/db

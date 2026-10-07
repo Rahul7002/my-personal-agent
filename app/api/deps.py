@@ -26,6 +26,11 @@ async def get_current_user(
     try:
         # Decode the JWT token using our secret key and algorithm
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+
+        # Prevent refresh tokens from being used as access tokens
+        if payload.get("type") != "access":
+            raise credentials_exception
+
         user_id_str: str | None = payload.get("sub")
         if user_id_str is None:
             raise credentials_exception

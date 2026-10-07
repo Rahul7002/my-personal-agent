@@ -21,7 +21,8 @@ class Settings(BaseSettings):
     # In production, generate with: openssl rand -hex 32
     SECRET_KEY: str = "super-secret-development-key-change-in-production-12345"
     ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 15       # Short-lived (15 minutes)
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 7          # Long-lived (7 days)
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

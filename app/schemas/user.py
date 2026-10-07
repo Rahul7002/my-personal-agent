@@ -21,9 +21,17 @@ class UserResponse(UserBase):
         from_attributes = True
 
 # Adding token schemas
-class Token(BaseModel):
+# Login response containing both tokens
+class TokenResponse(BaseModel):
     access_token: str
+    refresh_token: str
     token_type: str = "bearer"
 
-class TokenPayload(BaseModel):
-    sub: str | None = None
+# Payload client sends to POST /auth/refresh
+class RefreshTokenRequest(BaseModel):
+    refresh_token: str
+
+# Payload returned when successfully refreshing
+class AccessTokenResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"

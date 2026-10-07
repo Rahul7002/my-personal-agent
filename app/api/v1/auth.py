@@ -16,6 +16,7 @@ from app.schemas.user import (
     AccessTokenResponse,
     LogoutRequest,
     MessageResponse,
+    ChangePasswordRequest,
 )
 from app.core.security import (
     get_password_hash,
@@ -182,3 +183,40 @@ async def logout(
 @router.get("/me", response_model=UserResponse)
 async def read_users_me(current_user: User = Depends(get_current_user)):
     return current_user
+
+@router.post("/change-password", response_model=MessageResponse)
+async def change_password(
+    payload: ChangePasswordRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Changes the password for the currently logged-in user and revokes active refresh tokens."""
+    # 1. Verify that the current password matches
+    if not verify_password(payload.current_password, current_user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Incorrect current password"
+        )
+
+    # 2. Prevent reusing the exact same password
+    if verify_password(payload.new_password, current_user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="New password cannot be the same as the current password"
+        )
+
+    # 3. Hash the new password and update the user record
+    current_user.hashed_password = get_password_hash(payload.new_password)
+    db.add(current_user)
+
+    # 4. Security enhancement: Revoke all existing refresh tokens for this user
+    revoke_tokens_stmt = (
+        update(RefreshToken)
+        .where(RefreshToken.user_id == current_user.id)
+        .values(revoked=True)
+    )
+    await db.execute(revoke_tokens_stmt)
+
+    await db.commit()
+
+    return MessageResponse(message="Password changed successfully. Please log in again with your new password.")

@@ -7,6 +7,7 @@ from app.db.session import get_db
 from app.models.user import User
 from app.schemas.user import UserCreate, UserResponse, Token
 from app.core.security import get_password_hash, verify_password, create_access_token
+from app.api.deps import get_current_user
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
@@ -71,3 +72,11 @@ async def login_user(
     # Issue access token containing user's unique ID
     access_token = create_access_token(subject=str(user.id))
     return Token(access_token=access_token, token_type="bearer")
+
+
+@router.get("/me", response_model=UserResponse)
+async def read_users_me(
+    current_user: User = Depends(get_current_user)
+):
+    """Fetches the profile of the currently authenticated user."""
+    return current_user

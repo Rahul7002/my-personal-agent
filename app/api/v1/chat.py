@@ -4,6 +4,8 @@ from app.schemas.chat import ChatRequest, ChatResponse
 from app.services.llm.base import BaseLLMProvider
 from app.services.llm.factory import get_llm_provider
 from app.core.config import settings
+from app.api.deps import get_current_user
+from app.models.user import User
 
 # 1. This must be an APIRouter
 router = APIRouter(prefix="/chat", tags=["AI Chat"])
@@ -12,6 +14,7 @@ router = APIRouter(prefix="/chat", tags=["AI Chat"])
 @router.post("/ask", response_model=ChatResponse)
 def ask_ai(
     payload: ChatRequest,
+    current_user: User = Depends(get_current_user),
     llm: BaseLLMProvider = Depends(get_llm_provider),
 ):
     try:
@@ -30,6 +33,7 @@ def ask_ai(
 @router.post("/stream")
 async def stream_chat(
     payload: ChatRequest,
+    current_user: User = Depends(get_current_user),
     llm: BaseLLMProvider = Depends(get_llm_provider),
 ):
     token_stream = llm.generate_stream(

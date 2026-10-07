@@ -3,6 +3,7 @@ from fastapi import FastAPI, Depends
 from app.db.session import engine
 from app.db.base import Base
 from app.models.user import User
+from app.models.token import RefreshToken
 from app.db.session import get_db
 from app.api.v1.chat import router as chat_router
 from app.api.v1.auth import router as auth_router

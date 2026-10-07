@@ -1,17 +1,21 @@
 import uuid
+from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, update
 
 from app.db.session import get_db
 from app.models.user import User
+from app.models.token import RefreshToken
 from app.schemas.user import (
     UserCreate,
     UserResponse,
     TokenResponse,
     RefreshTokenRequest,
     AccessTokenResponse,
+    LogoutRequest,
+    MessageResponse,
 )
 from app.core.security import (
     get_password_hash,
@@ -82,10 +86,23 @@ async def login_user(
             detail="Inactive user account"
         )
 
-    # Issue both access and refresh tokens
+    # Generate tokens
+    access_token = create_access_token(subject=str(user.id))
+    refresh_token_str, jti, expire_at = create_refresh_token(subject=str(user.id))
+
+    # Persist the refresh token in PostgreSQL
+    db_token = RefreshToken(
+        user_id=user.id,
+        token_jti=jti,
+        expires_at=expire_at,
+        revoked=False
+    )
+    db.add(db_token)
+    await db.commit()
+
     return TokenResponse(
-        access_token=create_access_token(subject=str(user.id)),
-        refresh_token=create_refresh_token(subject=str(user.id)),
+        access_token=access_token,
+        refresh_token=refresh_token_str,
         token_type="bearer",
     )
 
@@ -94,27 +111,33 @@ async def refresh_access_token(
     payload: RefreshTokenRequest,
     db: AsyncSession = Depends(get_db)
 ):
-    """Exchanges a valid refresh token for a brand new access token."""
-    user_id_str = decode_refresh_token(payload.refresh_token)
-    if not user_id_str:
+    token_data = decode_refresh_token(payload.refresh_token)
+    if not token_data:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired refresh token",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    try:
-        user_id = uuid.UUID(user_id_str)
-    except ValueError:
+    user_id_str = token_data.get("sub")
+    jti = token_data.get("jti")
+
+    # Verify against database record
+    query = select(RefreshToken).where(RefreshToken.token_jti == jti)
+    result = await db.execute(query)
+    db_token = result.scalar_one_or_none()
+
+    if not db_token or db_token.revoked:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token payload",
+            detail="Token has been revoked or is invalid",
+            headers={"WWW-Authenticate": "Bearer"},
         )
 
-    # Confirm user still exists and is active
-    query = select(User).where(User.id == user_id)
-    result = await db.execute(query)
-    user = result.scalar_one_or_none()
+    # Check user status
+    user_query = select(User).where(User.id == uuid.UUID(user_id_str))
+    user_result = await db.execute(user_query)
+    user = user_result.scalar_one_or_none()
 
     if not user or not user.is_active:
         raise HTTPException(
@@ -126,9 +149,36 @@ async def refresh_access_token(
     new_access_token = create_access_token(subject=str(user.id))
     return AccessTokenResponse(access_token=new_access_token, token_type="bearer")
 
-@router.get("/me", response_model=UserResponse)
-async def read_users_me(
-    current_user: User = Depends(get_current_user)
+@router.post("/logout", response_model=MessageResponse)
+async def logout(
+    payload: LogoutRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
 ):
-    """Fetches the profile of the currently authenticated user."""
+    """Revokes the refresh token so it cannot be used again."""
+    token_data = decode_refresh_token(payload.refresh_token)
+    if not token_data:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid refresh token format"
+        )
+
+    jti = token_data.get("jti")
+    
+    # Mark revoked in PostgreSQL
+    stmt = (
+        update(RefreshToken)
+        .where(RefreshToken.token_jti == jti, RefreshToken.user_id == current_user.id)
+        .values(revoked=True)
+    )
+    result = await db.execute(stmt)
+    await db.commit()
+
+    if result.rowcount == 0:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
+
+    return MessageResponse(message="Successfully logged out")
+
+@router.get("/me", response_model=UserResponse)
+async def read_users_me(current_user: User = Depends(get_current_user)):
     return current_user

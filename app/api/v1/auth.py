@@ -17,6 +17,8 @@ from app.schemas.user import (
     LogoutRequest,
     MessageResponse,
     ChangePasswordRequest,
+    ForgotPasswordRequest,
+    ResetPasswordRequest,
 )
 from app.core.security import (
     get_password_hash,
@@ -24,6 +26,8 @@ from app.core.security import (
     create_access_token,
     create_refresh_token,
     decode_refresh_token,
+    create_password_reset_token,
+    verify_password_reset_token,
 )
 from app.api.deps import get_current_user
 
@@ -220,3 +224,71 @@ async def change_password(
     await db.commit()
 
     return MessageResponse(message="Password changed successfully. Please log in again with your new password.")
+
+
+@router.post("/forgot-password", response_model=MessageResponse)
+async def forgot_password(
+    payload: ForgotPasswordRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Generates a password reset token. In production, this emails the link.
+    In local development, we print the reset token to the server console.
+    """
+    query = select(User).where(User.email == payload.email)
+    result = await db.execute(query)
+    user = result.scalar_one_or_none()
+
+    if user and user.is_active:
+        reset_token = create_password_reset_token(email=user.email)
+        
+        # During local development, print the token directly to your terminal
+        print("\n" + "=" * 60)
+        print(f"[DEV ONLY] Password reset token for {user.email}:")
+        print(reset_token)
+        print("=" * 60 + "\n")
+        
+        # In production: trigger background task (e.g. Celery / FastMail / SendGrid)
+
+    # Always return 200 OK with identical text to prevent account enumeration
+    return MessageResponse(
+        message="If this email is registered, instructions to reset your password have been sent."
+    )
+
+@router.post("/reset-password", response_model=MessageResponse)
+async def reset_password(
+    payload: ResetPasswordRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    """Verifies the reset token, updates password, and revokes all active sessions."""
+    email = verify_password_reset_token(payload.token)
+    if not email:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired reset token"
+        )
+
+    query = select(User).where(User.email == email)
+    result = await db.execute(query)
+    user = result.scalar_one_or_none()
+
+    if not user or not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found or inactive"
+        )
+
+    # 1. Update to the new hashed password
+    user.hashed_password = get_password_hash(payload.new_password)
+    db.add(user)
+
+    # 2. Invalidate all existing refresh tokens for security
+    stmt = (
+        update(RefreshToken)
+        .where(RefreshToken.user_id == user.id)
+        .values(revoked=True)
+    )
+    await db.execute(stmt)
+    await db.commit()
+
+    return MessageResponse(message="Password has been successfully reset. You can now log in.")

@@ -54,3 +54,24 @@ def decode_refresh_token(token: str) -> dict | None:
         return payload
     except (jwt.PyJWTError, ValueError):
         return None
+
+def create_password_reset_token(email: str) -> str:
+    """Generates a 15-minute token specifically for resetting passwords."""
+    expire = datetime.now(timezone.utc) + timedelta(minutes=15)
+    payload = {
+        "sub": email,
+        "type": "password_reset",
+        "exp": expire,
+        "iat": datetime.now(timezone.utc),
+    }
+    return jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+
+def verify_password_reset_token(token: str) -> str | None:
+    """Decodes token and returns email if valid, otherwise None."""
+    try:
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        if payload.get("type") != "password_reset":
+            return None
+        return payload.get("sub")
+    except (jwt.PyJWTError, ValueError):
+        return None

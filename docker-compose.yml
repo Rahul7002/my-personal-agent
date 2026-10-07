@@ -1,4 +1,4 @@
-version: "3.8"
+# version: "3.8"
 
 services:
   # 1. PostgreSQL Database Service
@@ -22,29 +22,18 @@ services:
       timeout: 5s
       retries: 5
 
-  # 2. FastAPI Web Application
-  web:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: fastapi_app
-    restart: unless-stopped
-    ports:
-      - "8000:8000"  # HTTP web traffic
-      - "5678:5678"  # debugpy debugger port
-    volumes:
-      - .:/app       # Hot reload sync
+  # Add this under "services:" in docker-compose.yml
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: pgadmin4_container
+    restart: always
     environment:
-      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-ai_backend_db}
-      - OLLAMA_HOST=http://host.docker.internal:11434
-      - OLLAMA_MODEL=${OLLAMA_MODEL:-llama3.2:1b}
-      - LLM_PROVIDER=${LLM_PROVIDER:-ollama}
-    extra_hosts:
-      # Enables Mac host communication for Ollama
-      - "host.docker.internal:host-gateway"
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "5050:80"  # pgAdmin web UI will open on http://localhost:5050
     depends_on:
-      db:
-        condition: service_healthy
+      - db
 
 volumes:
   postgres_data:

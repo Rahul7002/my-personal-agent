@@ -19,6 +19,7 @@ from app.schemas.user import (
     ChangePasswordRequest,
     ForgotPasswordRequest,
     ResetPasswordRequest,
+    LoginRequest,
 )
 from app.core.security import (
     get_password_hash,
@@ -70,19 +71,17 @@ async def register_user(
 # login api
 @router.post("/login", response_model=TokenResponse)
 async def login_user(
-    form_data: OAuth2PasswordRequestForm = Depends(),
+    payload: LoginRequest,  # <-- Uses clean JSON schema
     db: AsyncSession = Depends(get_db)
 ):
-    # OAuth2PasswordRequestForm expects 'username' (which is the email here) and 'password'
-    query = select(User).where(User.email == form_data.username)
+    query = select(User).where(User.email == payload.email)
     result = await db.execute(query)
     user = result.scalar_one_or_none()
 
-    if not user or not verify_password(form_data.password, user.hashed_password):
+    if not user or not verify_password(payload.password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",
-            headers={"WWW-Authenticate": "Bearer"},
         )
 
     if not user.is_active:
@@ -91,11 +90,9 @@ async def login_user(
             detail="Inactive user account"
         )
 
-    # Generate tokens
     access_token = create_access_token(subject=str(user.id))
     refresh_token_str, jti, expire_at = create_refresh_token(subject=str(user.id))
 
-    # Persist the refresh token in PostgreSQL
     db_token = RefreshToken(
         user_id=user.id,
         token_jti=jti,

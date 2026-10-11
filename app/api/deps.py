@@ -1,7 +1,8 @@
 import uuid
 import jwt
 from fastapi import Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer
+# 1. Replace OAuth2PasswordBearer with HTTPBearer and HTTPAuthorizationCredentials
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
@@ -9,12 +10,12 @@ from app.core.config import settings
 from app.db.session import get_db
 from app.models.user import User
 
-# This tells FastAPI to inspect the "Authorization: Bearer <token>" header
-# and configures the Swagger UI Authorize button to send requests to /api/v1/auth/login
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
+# 2. Instantiate HTTPBearer instead of OAuth2PasswordBearer
+# This tells Swagger UI to prompt directly for the Bearer token without the username/password form.
+http_bearer = HTTPBearer()
 
 async def get_current_user(
-    token: str = Depends(oauth2_scheme),
+    auth: HTTPAuthorizationCredentials = Depends(http_bearer),
     db: AsyncSession = Depends(get_db)
 ) -> User:
     credentials_exception = HTTPException(
@@ -23,8 +24,11 @@ async def get_current_user(
         headers={"WWW-Authenticate": "Bearer"},
     )
 
+    # 3. Extract the raw token string from the credentials object
+    token = auth.credentials
+
     try:
-        # Decode the JWT token using our secret key and algorithm
+        # Decode the JWT token using your secret key and algorithm
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
 
         # Prevent refresh tokens from being used as access tokens

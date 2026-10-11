@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backend-config
+  labels:
+    app: ai-backend
+data:
+  PROJECT_NAME: "FastAPI AI Agent"
+  LLM_PROVIDER: "ollama"
+  # In local Docker Desktop / Minikube, host.docker.internal reaches services on the host
+  OLLAMA_HOST: "http://host.docker.internal:11434"
+  OLLAMA_MODEL: "llama3.2:1b"
+  ACCESS_TOKEN_EXPIRE_MINUTES: "15"
+  REFRESH_TOKEN_EXPIRE_DAYS: "7"
+  ALGORITHM: "HS256"

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from app.schemas.chat import ChatRequest, ChatResponse
 from app.services.llm.base import BaseLLMProvider
@@ -6,13 +6,17 @@ from app.services.llm.factory import get_llm_provider
 from app.core.config import settings
 from app.api.deps import get_current_user
 from app.models.user import User
+from app.core.limiter import limiter
+
 
 # 1. This must be an APIRouter
 router = APIRouter(prefix="/chat", tags=["AI Chat"])
 
 # 2. This MUST be @router.post, NOT @app.post
 @router.post("/ask", response_model=ChatResponse)
+@limiter.limit("2/minute")
 def ask_ai(
+    request: Request,
     payload: ChatRequest,
     current_user: User = Depends(get_current_user),
     llm: BaseLLMProvider = Depends(get_llm_provider),

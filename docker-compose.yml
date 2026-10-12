@@ -14,15 +14,30 @@ services:
       # Exposes 5432 to host so you can connect table viewer tools (DBeaver, TablePlus, pgAdmin)
       - "5432:5432"
     volumes:
-      # Named volume ensures data is preserved even if container is deleted
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-ai_backend_db}"]
       interval: 5s
       timeout: 5s
       retries: 5
 
-  # Add this under "services:" in docker-compose.yml
+  # 2. Redis Cache & Rate-Limiter Service
+  redis:
+    image: redis:7-alpine
+    container_name: redis_cache
+    restart: always
+    ports:
+      # Exposes 6379 to your Mac host for your local FastAPI app
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # 3. pgAdmin UI
   pgadmin:
     image: dpage/pgadmin4
     container_name: pgadmin4_container
@@ -37,3 +52,4 @@ services:
 
 volumes:
   postgres_data:
+  redis_data:

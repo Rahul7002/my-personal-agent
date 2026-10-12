@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime, timezone
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update
@@ -31,6 +31,7 @@ from app.core.security import (
     verify_password_reset_token,
 )
 from app.api.deps import get_current_user
+from app.core.limiter import limiter
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
@@ -70,7 +71,9 @@ async def register_user(
 
 # login api
 @router.post("/login", response_model=TokenResponse)
+@limiter.limit("2/minute")
 async def login_user(
+    request: Request,
     payload: LoginRequest,  # <-- Uses clean JSON schema
     db: AsyncSession = Depends(get_db)
 ):

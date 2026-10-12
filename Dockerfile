@@ -4,9 +4,15 @@ FROM python:3.12-slim
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONPATH=/app
+ENV PIP_DISABLE_PIP_VERSION_CHECK=1
 
 # 2. Working Directory: Set the working folder inside the container
 WORKDIR /app
+
+# 2.1. Install system dependencies (curl is useful for container health checks)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
 
 # 3. Dependencies: Copy requirements first to leverage Docker's cache
 COPY requirements.txt .
@@ -16,6 +22,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # 5. Copy Code: Copy your main.py file into the container's /app directory
 COPY . .
+
+# 8. Create a non-root user and grant permissions
+RUN useradd -u 1000 appuser && chown -R appuser:appuser /app
+USER appuser
 
 # # 6. Port: Document that the container listens on port 8000
 # EXPOSE 8000

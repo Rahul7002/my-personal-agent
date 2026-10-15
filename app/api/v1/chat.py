@@ -43,7 +43,7 @@ async def stream_chat(
     token_stream = llm.generate_stream(
         prompt=payload.prompt,
         system_prompt=payload.system_prompt,
-        model=settings.OLLAMA_MODEL,
+        model=settings.GROQ_MODEL,
     )
 
     return StreamingResponse(

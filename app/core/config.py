@@ -4,7 +4,7 @@ class Settings(BaseSettings):
     PROJECT_NAME: str = "FastAPI AI Agent"
     
     # Provider selection: "ollama" or "openai"
-    LLM_PROVIDER: str = "ollama"
+    LLM_PROVIDER: str = "groq"
     
     # Ollama settings
     OLLAMA_HOST: str = "http://localhost:11434"
@@ -25,6 +25,9 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7          # Long-lived (7 days)
 
     REDIS_URL: str = "redis://@localhost:6379/0"
+
+    GROQ_API_KEY: str
+    GROQ_MODEL: str = "llama-3.3-70b-versatile"
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

@@ -71,7 +71,7 @@ async def register_user(
 
 # login api
 @router.post("/login", response_model=TokenResponse)
-@limiter.limit("2/minute")
+@limiter.limit("12/minute")
 async def login_user(
     request: Request,
     payload: LoginRequest,  # <-- Uses clean JSON schema

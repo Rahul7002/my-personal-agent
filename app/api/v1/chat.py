@@ -14,7 +14,7 @@ router = APIRouter(prefix="/chat", tags=["AI Chat"])
 
 # 2. This MUST be @router.post, NOT @app.post
 @router.post("/ask", response_model=ChatResponse)
-@limiter.limit("2/minute")
+@limiter.limit("12/minute")
 def ask_ai(
     request: Request,
     payload: ChatRequest,

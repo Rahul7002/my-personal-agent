@@ -20,6 +20,13 @@ spec:
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8000
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "350Mi" # Kills just the pod (OOMKilled) rather than freezing the whole EC2 instance
+              cpu: "500m"
           envFrom:
             - configMapRef:
                 name: backend-config

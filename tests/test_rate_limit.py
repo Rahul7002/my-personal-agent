@@ -3,11 +3,11 @@ from httpx import AsyncClient
 
 @pytest.mark.anyio
 async def test_login_rate_limiting(client: AsyncClient):
-    payload = {"email": "ratelimit_test@example.com", "password": "badpassword"}
+    payload = {"email": "rahul@admin.com", "password": "Insta@123"}
     statuses = []
 
     # Send 7 rapid requests (default limit is 5/minute)
-    for _ in range(7):
+    for _ in range(13):
         res = await client.post("/api/v1/auth/login", json=payload)
         statuses.append(res.status_code)
 

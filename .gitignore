@@ -148,9 +148,11 @@ activemq-data/
 
 # SageMath parsed files
 *.sage.py
+test_postgresql.py
 
 # Environments
-.env
+.env.development
+.env.production
 .envrc
 .venv
 env/

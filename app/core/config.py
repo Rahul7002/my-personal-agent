@@ -1,12 +1,18 @@
+import os
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import Field
 
+# 1. Determine environment (defaults to 'development' if not set)
+APP_ENV: str = os.getenv("APP_ENV", "development").lower()
 class Settings(BaseSettings):
+    # Track the active environment inside the app
+    APP_ENV: str = APP_ENV
+
     PROJECT_NAME: str = "FastAPI AI Agent"
     
     # Provider selection: "ollama" or "openai"
     LLM_PROVIDER: str = "groq"
-    
+
     # Ollama settings
     OLLAMA_HOST: str = "http://localhost:11434"
     OLLAMA_MODEL: str = "llama3.2:1b"
@@ -30,6 +36,10 @@ class Settings(BaseSettings):
     GROQ_API_KEY: str| None = Field(default=None)
     GROQ_MODEL: str = "llama-3.3-70b-versatile"
 
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(
+        env_file=(f".env.{APP_ENV}", ".env"),
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
 
 settings = Settings()

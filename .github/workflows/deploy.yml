@@ -1,0 +1,89 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  # -------------------------------------------------------------
+  # 1. CI JOB: Spin up Postgres & Redis, run tests via pytest
+  # -------------------------------------------------------------
+  test:
+    name: Run Pytest Suite
+    runs-on: ubuntu-latest
+
+    # Ephemeral service containers started inside the GitHub VM
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: ai_backend_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          pip install pytest pytest-asyncio httpx respx
+
+      - name: Run Test Suite
+        env:
+          DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/ai_backend_db
+          REDIS_URL: redis://localhost:6379/0
+          OLLAMA_BASE_URL: http://localhost:11434
+        run: |
+          pytest -v
+
+  # -------------------------------------------------------------
+  # 2. CD JOB: Await your manual approval, then deploy to EC2
+  # -------------------------------------------------------------
+  deploy:
+    name: Deploy to EC2
+    needs: test
+    runs-on: ubuntu-latest
+    environment:
+      name: production # This triggers the manual approval gate
+
+    steps:
+      - name: Deploy updates over SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            cd ~/fast-api-backend
+            git pull origin main
+            # Rebuild only the FastAPI backend container; leaves Postgres & Redis undisturbed
+            docker compose up --build -d backend
+            # Clean up old unused build images to save EC2 disk space
+            docker image prune -f

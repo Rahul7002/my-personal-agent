@@ -1,4 +1,5 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import Field
 
 class Settings(BaseSettings):
     PROJECT_NAME: str = "FastAPI AI Agent"
@@ -26,7 +27,7 @@ class Settings(BaseSettings):
 
     REDIS_URL: str = "redis://@localhost:6379/0"
 
-    GROQ_API_KEY: str
+    GROQ_API_KEY: str| None = Field(default=None)
     GROQ_MODEL: str = "llama-3.3-70b-versatile"
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
